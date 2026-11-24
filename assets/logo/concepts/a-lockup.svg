@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 256">
+  <g>
+  <path fill="#000" fill-rule="evenodd" d="M44 34H212V122C212 178 176 214 128 236C80 214 44 178 44 122Z M128 74A44 44 0 1 0 128 162A44 44 0 1 0 128 74Z"/>
+</g>
+  <!-- exploration : texte vivant, à vectoriser pour la version finale -->
+  <text x="276" y="124" font-family="Montserrat, 'Arial Black', sans-serif" font-weight="800" font-size="52" letter-spacing="1" fill="#000">OFFICE DU COMMERCE</text>
+  <text x="276" y="190" font-family="Montserrat, 'Arial Black', sans-serif" font-weight="600" font-size="52" letter-spacing="6" fill="#000">MONTPELLIÉRAIN</text>
+</svg>

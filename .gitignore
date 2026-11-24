@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Données produites localement (recalculables)
+cache/
+exports/
+*.xlsx
+
+# Système
+.DS_Store
+
+# Secrets Streamlit éventuels
+.streamlit/secrets.toml

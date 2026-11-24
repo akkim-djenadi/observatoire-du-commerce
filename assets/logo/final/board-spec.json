@@ -1,0 +1,50 @@
+{
+  "brand": "Observatoire du Commerce",
+  "tagline": "Veiller sur le commerce de centre-ville",
+  "brief": "Une marque pour l'Observatoire du Commerce et son application de veille : la santé des commerces du centre-ville de Montpellier, suivie à partir des données publiques. Elle doit inspirer confiance aux commerçants et aux élus, et rester chaleureuse et méditerranéenne.",
+  "adjectives": [
+    "fiable",
+    "attentif",
+    "montpelliérain",
+    "chaleureux"
+  ],
+  "criteria": "Réussite : lisible à 16 px, une seule couleur possible, ancrée à Montpellier sans cliché de sac ou de loupe, cohérente avec la charte terracotta.",
+  "mockups": [
+    "website",
+    "signage",
+    "favicon-tab",
+    "tote",
+    "shopping-bag",
+    "social"
+  ],
+  "nav": [
+    "Centre-ville",
+    "Comparer les villes",
+    "Méthode"
+  ],
+  "brand_color": "#BB502E",
+  "greyscale": false,
+  "designer": "Akkim Djenadi",
+  "round": 3,
+  "concepts": [
+    {
+      "name": "Les Arcades",
+      "symbol": "observatoire-symbole.svg",
+      "lockup": "observatoire-horizontal.svg",
+      "idea": "Un « m » dessiné comme deux arcades marchandes : Montpellier et ses rez-de-chaussée commerçants.",
+      "rationale": [
+        "Deux lectures en une forme : la lettre m et une façade de boutiques",
+        "Lisible jusqu'au favicon, avec une version renforcée pour les petites tailles",
+        "Construit sur un seul module : piliers, traverse et arcs de même épaisseur"
+      ]
+    }
+  ],
+  "recommendation": "Les Arcades, en terracotta #BB502E, inversé en sable #F6ECE4 sur fond sombre.",
+  "next_steps": [
+    "Décliner les arcades en motif (bandeaux, en-têtes de documents)",
+    "Recherche d'antériorité de marque avant dépôt"
+  ],
+  "final": true,
+  "deck_title": "identité visuelle",
+  "label": "Logo final"
+}

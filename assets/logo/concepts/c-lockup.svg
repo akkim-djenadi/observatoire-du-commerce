@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 256">
+  <g>
+  <path fill="#000" d="M36 164A92 92 0 0 1 220 164A23 23 0 0 1 174 164A23 23 0 0 1 128 164A23 23 0 0 1 82 164A23 23 0 0 1 36 164Z"/>
+  <g stroke="#fff" stroke-width="9" stroke-linecap="butt">
+    <line x1="82" y1="174" x2="104" y2="66"/>
+    <line x1="128" y1="174" x2="128" y2="66"/>
+    <line x1="174" y1="174" x2="152" y2="66"/>
+  </g>
+</g>
+  <!-- exploration : texte vivant, à vectoriser pour la version finale -->
+  <text x="276" y="124" font-family="Montserrat, 'Arial Black', sans-serif" font-weight="800" font-size="52" letter-spacing="1" fill="#000">OFFICE DU COMMERCE</text>
+  <text x="276" y="190" font-family="Montserrat, 'Arial Black', sans-serif" font-weight="600" font-size="52" letter-spacing="6" fill="#000">MONTPELLIÉRAIN</text>
+</svg>
