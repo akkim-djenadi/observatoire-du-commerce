@@ -1,5 +1,6 @@
 """Stock des commerces d'une commune (actifs et fermés récemment), d'après l'API Recherche d'entreprises (Sirene)."""
 import logging
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
@@ -9,15 +10,15 @@ from typing import Any, Iterable
 import pandas as pd
 
 from adresses import cle_adresse, est_voie_nommee, normaliser_voie, numero
-from config import (DOMICILIATION_RE, ENTREPRISES_PAUSE_S, ENTREPRISES_URL, INDEPENDANT_MAX_ETABLISSEMENTS,
-                    ZONE_HORS_CENTRE)
+from config import DOMICILIATION_RE, ENTREPRISES_URL, INDEPENDANT_MAX_ETABLISSEMENTS, ZONE_HORS_CENTRE
 from geo import Point, classify_zone
 from http_client import SourceIndisponible, get_json
 
 log = logging.getLogger(__name__)
 PAR_PAGE = 25
 PAGES_MAX = 400  # l'API plafonne à 10 000 résultats
-TACHES_PARALLELES = 3   # 3 codes NAF à la fois : environ 7 requêtes par seconde, la limite de l'API
+TACHES_PARALLELES = 3        # 3 codes NAF à la fois…
+REQUETES_PAR_SECONDE = 5.0   # …mais jamais plus de 5 requêtes par seconde au total (limite de l'API : 7)
 DOMICILIATION_MIN_ENTREPRISES = 6  # autant d'entreprises actives à une même adresse : c'est une domiciliation
 
 
@@ -74,36 +75,77 @@ def depuis_resultat(resultat: dict[str, Any], commune: str, nafs: frozenset[str]
     return sortie
 
 
-def _pages(commune: str, naf: str) -> Iterable[dict[str, Any]]:
+class Cadence:
+    """Espace les requêtes de tous les fils d'exécution pour ne pas dépasser un débit global."""
+
+    def __init__(self, par_seconde: float) -> None:
+        self.intervalle = 1.0 / par_seconde
+        self._verrou = threading.Lock()
+        self._prochaine = 0.0
+
+    def reserver(self) -> float:
+        """Réserve le prochain créneau et renvoie l'attente nécessaire (en secondes)."""
+        with self._verrou:
+            maintenant = time.monotonic()
+            creneau = max(maintenant, self._prochaine)
+            self._prochaine = creneau + self.intervalle
+            return creneau - maintenant
+
+    def attendre(self) -> None:
+        attente = self.reserver()
+        if attente > 0:
+            time.sleep(attente)
+
+
+class CollecteIncomplete(SourceIndisponible):
+    """Au moins un code NAF n'a pas pu être collecté : les données seraient incomplètes."""
+
+
+def _pages(commune: str, naf: str, cadence: Cadence) -> Iterable[dict[str, Any]]:
     page, total = 1, 1
     while page <= min(total, PAGES_MAX):
+        cadence.attendre()
         data = get_json(ENTREPRISES_URL, params={
             "code_commune": commune, "activite_principale": naf, "per_page": str(PAR_PAGE), "page": str(page),
         })
         total = int(data.get("total_pages") or 0)
         yield from data.get("results") or []
         page += 1
-        time.sleep(ENTREPRISES_PAUSE_S)
 
 
-def _un_code(commune: str, naf: str, nafs: frozenset[str], fermes_depuis: date) -> list[Etablissement]:
+def _un_code(commune: str, naf: str, nafs: frozenset[str], fermes_depuis: date,
+             cadence: Cadence) -> list[Etablissement] | None:
+    """Établissements d'un code NAF, ou None si la collecte de ce code a échoué."""
     try:
-        return [e for r in _pages(commune, naf) for e in depuis_resultat(r, commune, nafs, fermes_depuis)]
+        return [e for r in _pages(commune, naf, cadence) for e in depuis_resultat(r, commune, nafs, fermes_depuis)]
     except SourceIndisponible as exc:
-        log.warning("Code NAF %s ignoré : %s", naf, exc)
-        return []
+        log.error("Code NAF %s non collecté : %s", naf, exc)
+        return None
 
 
 def collecter(commune: str, nafs: Iterable[str], fermes_depuis: date) -> list[Etablissement]:
-    """Tous les commerces de la commune (plusieurs codes NAF en parallèle), sans doublon de SIRET."""
+    """Tous les commerces de la commune (plusieurs codes NAF en parallèle), sans doublon de SIRET.
+
+    Si un seul code NAF échoue, lève CollecteIncomplete : mieux vaut garder les données du mois précédent
+    que publier un stock amputé (par exemple sans les boutiques de vêtements).
+    """
     nafs = frozenset(nafs)
+    cadence = Cadence(REQUETES_PAR_SECONDE)
     vus: dict[str, Etablissement] = {}
+    echecs: list[str] = []
+    codes = sorted(nafs)
     with ThreadPoolExecutor(max_workers=TACHES_PARALLELES) as pool:
-        for i, lot in enumerate(pool.map(lambda n: _un_code(commune, n, nafs, fermes_depuis), sorted(nafs)), 1):
+        lots = pool.map(lambda n: _un_code(commune, n, nafs, fermes_depuis, cadence), codes)
+        for i, (naf, lot) in enumerate(zip(codes, lots), 1):
+            if lot is None:
+                echecs.append(naf)
+                continue
             for e in lot:
                 vus.setdefault(e.siret, e)
             if i % 10 == 0:
                 log.info("  %d/%d codes NAF, %d établissements", i, len(nafs), len(vus))
+    if echecs:
+        raise CollecteIncomplete(f"{len(echecs)} code(s) NAF non collecté(s) : {', '.join(echecs)}")
     log.info("Sirene : %d établissements commerce à retenir", len(vus))
     return list(vus.values())
 
