@@ -5,8 +5,10 @@ import pandas as pd
 import streamlit as st
 
 import comparaison as C
+import explications as E
 from ui_brand import ENTETE
-from ui_charts_comparaison import COULEUR_MONTPELLIER, MAX_VILLES, PALETTE_VILLES, classement, courbes
+from ui_charts_comparaison import (COULEUR_MONTPELLIER, MAX_VILLES, PALETTE_VILLES, VILLE_REFERENCE, classement,
+                                    courbes)
 
 VILLES_PROPOSEES = [
     "Montpellier", "Toulouse", "Nîmes", "Perpignan", "Béziers", "Marseille", "Nice", "Bordeaux",
@@ -23,6 +25,7 @@ MESURES = {
     "Dynamisme : créations pour 1 défaillance": ("ratio", "créations pour 1 défaillance"),
 }
 LISSAGES = {"Aucun": 1, "3 mois": 3, "12 mois": 12}
+VUES = ["Graphiques", "Comprendre les chiffres"]
 
 
 @st.cache_data(ttl=CACHE_TTL_S, show_spinner=False)
@@ -89,40 +92,78 @@ def page() -> None:
     unite_affichee = unite + ("" if ratio or not par_hab else " pour 10 000 hab.")
     serie = C.indicateur(large, populations, cle, par_hab and not ratio, lissage)
     couleurs = _couleurs(list(populations))
+    synth = C.synthese(large, populations)
     st.caption(f"Du {debut:%m/%Y} au {fin:%m/%Y} · {perimetre} · lissage : "
                f"{'aucun' if lissage == 1 else f'moyenne sur {lissage} mois'}"
                + (" (ratio calculé sur les mois cumulés)" if ratio and lissage > 1 else ""))
+    vue = st.segmented_control("Vue", VUES, default=VUES[0], key="vue_comparaison",
+                               label_visibility="collapsed") or VUES[0]
+    if vue == VUES[0]:
+        _graphiques(serie, synth, couleurs, mesure, unite_affichee, ratio, par_hab)
+        st.download_button("Télécharger les séries mensuelles (CSV)",
+                           large.to_csv(index=False, sep=";").encode("utf-8-sig"),
+                           file_name=f"comparaison_villes_{debut:%Y-%m}_{fin:%Y-%m}.csv")
+        st.caption("Nouveau sur cette page ? Ouvrez la vue **Comprendre les chiffres**, juste au-dessus des graphiques.")
+    else:
+        reference = VILLE_REFERENCE if VILLE_REFERENCE in populations else next(iter(populations))
+        _comprendre(synth, reference, perimetre)
+
+
+def _graphiques(serie: pd.DataFrame, synth: pd.DataFrame, couleurs: dict[str, str], mesure: str,
+                unite_affichee: str, ratio: bool, par_hab: bool) -> None:
     st.markdown(f"##### {mesure}" + ("" if ratio or not par_hab else " · pour 10 000 habitants"))
     st.plotly_chart(courbes(serie, couleurs, unite_affichee), width="stretch")
-
-    synth = C.synthese(large, populations)
     g1, g2 = st.columns(2)
     g1.markdown("##### Défaillances pour 10 000 habitants")
-    g1.plotly_chart(classement(synth, "Défaillances / 10 000 hab.", couleurs), width="stretch")
+    g1.plotly_chart(classement(synth, E.COL_TAUX, couleurs), width="stretch")
     g2.markdown("##### Créations pour 1 défaillance (dynamisme)")
-    g2.plotly_chart(classement(synth, "Créations pour 1 défaillance", couleurs), width="stretch")
-
+    g2.plotly_chart(classement(synth, E.COL_RATIO, couleurs), width="stretch")
     st.markdown("##### Tableau récapitulatif de la période")
     st.dataframe(synth, hide_index=True, width="stretch", column_config={
         "Population": st.column_config.NumberColumn(format="localized"),
         C.COL_EVOLUTION: st.column_config.NumberColumn(
             format="%+.1f", help="12 derniers mois de la période comparés aux 12 mois précédents"),
     })
-    st.download_button("Télécharger les séries mensuelles (CSV)",
-                       large.to_csv(index=False, sep=";").encode("utf-8-sig"),
-                       file_name=f"comparaison_villes_{debut:%Y-%m}_{fin:%Y-%m}.csv")
-    with st.expander("Comment lire ces chiffres"):
-        st.markdown(
-            "- **Défaillances** : jugements d'ouverture de redressement, de sauvegarde ou de liquidation judiciaire. "
-            "C'est la définition usuelle de la défaillance d'entreprise.\n"
-            "- **Créations pour 1 défaillance** : au-dessus de 1, il naît plus d'entreprises qu'il n'en tombe en "
-            "difficulté. Plus le chiffre est haut, plus le tissu économique se renouvelle.\n"
-            "- **Pour 10 000 habitants** : population municipale INSEE la plus récente (API Découpage administratif).\n"
-            "- **Périmètre « Commerces »** : estimation par mots-clés dans l'activité déclarée (restaurant, boulangerie, "
-            "coiffure, vêtements…), vente en ligne exclue. À utiliser pour comparer des villes entre elles, pas comme "
-            "un décompte exact.\n"
-            "- Une ville est délimitée par ses codes postaux **et** son nom : Sainte-Foy-lès-Lyon n'est pas comptée "
-            "dans Lyon. Les adresses en « cedex » peuvent manquer.\n"
-            "- Le mois en cours, incomplet, est exclu."
-        )
 
+
+def _comprendre(synth: pd.DataFrame, reference: str, perimetre: str) -> None:
+    """Vue pédagogique : lecture automatique, exemple de calcul, mots clés, mode d'emploi, pièges, questions."""
+    st.markdown(f"#### Ce que disent les chiffres pour {reference}")
+    phrases = E.lecture_simple(synth, reference)
+    with st.container(border=True):
+        if phrases:
+            for p in phrases:
+                st.markdown(f"- {p}")
+        else:
+            st.markdown("Pas assez de données pour résumer la comparaison.")
+        st.caption(f"Résumé calculé automatiquement à partir des villes et de la période choisies ({perimetre}).")
+
+    ex = E.exemple_calcul(synth, reference)
+    if ex:
+        st.markdown("#### Le calcul, pas à pas")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Défaillances sur la période", E.nombre(ex.defaillances))
+        c2.metric("Habitants", E.nombre(ex.population))
+        c3.metric("Pour 10 000 habitants", E.nombre(ex.taux, 1))
+        st.markdown(f"{E.nombre(ex.defaillances)} défaillances ÷ {E.nombre(ex.population)} habitants × 10 000 = "
+                    f"**{E.nombre(ex.taux, 1)}**. Le même calcul est fait pour chaque ville : on compare ainsi des "
+                    "villes de tailles différentes comme si elles avaient toutes 10 000 habitants.")
+
+    st.markdown("#### Les mots à connaître")
+    colonnes = st.columns(2)
+    for i, (mot, definition) in enumerate(E.GLOSSAIRE):
+        with colonnes[i % 2].container(border=True):
+            st.markdown(f"**{mot}**")
+            st.markdown(definition)
+
+    st.markdown("#### Lire le graphique en 30 secondes")
+    st.markdown("\n".join(f"{i}. {etape}" for i, etape in enumerate(E.COMMENT_LIRE, 1)))
+
+    st.markdown("#### Les pièges à éviter")
+    for titre, texte in E.PIEGES:
+        st.markdown(f"- **{titre}** : {texte}")
+
+    st.markdown("#### Questions fréquentes")
+    for question, reponse in E.FAQ:
+        with st.expander(question):
+            st.markdown(reponse)
