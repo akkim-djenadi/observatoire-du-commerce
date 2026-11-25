@@ -1,18 +1,18 @@
 {
   "etablissements": {
     "lignes": 4329,
-    "collecte": "2026-11-25T18:32:07"
+    "collecte": "2026-11-25T17:39:54"
   },
   "dvf": {
     "lignes": 938,
-    "collecte": "2026-11-25T15:48:07"
+    "collecte": "2026-11-25T17:40:15"
   },
   "procedures": {
     "lignes": 437,
-    "collecte": "2026-11-25T15:55:21"
+    "collecte": "2026-11-25T17:49:33"
   },
   "indice": {
     "lignes": 1553,
-    "collecte": "2026-11-25T18:32:20"
+    "collecte": "2026-11-25T17:49:34"
   }
 }
