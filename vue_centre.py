@@ -15,10 +15,12 @@ from ui_brand import ENTETE
 from classify import FILTRES_LIBELLES
 from config import ZONE_ORDER
 from export_excel import write_excel
+from fiche_aide import CONTACTS_AIDE, extraire_fiche
+from vitalite_data import date_fr
 from http_client import SourceIndisponible
 from periode import mois_avant
 from pipeline import Rapport, run
-from ui_data import (COLONNES_COMMERCES, ORDRE_STATUTS, Filtres, annonces_df, appliquer_filtres,
+from ui_data import (COLONNES_COMMERCES, ORDRE_STATUTS, STATUTS_A_ACCOMPAGNER, Filtres, annonces_df, appliquer_filtres,
                      commerces_df, indicateurs, types_depuis_cles)
 
 ICI = Path(__file__).resolve().parent
@@ -165,6 +167,31 @@ def onglet_commerces(df: pd.DataFrame, annonces: pd.DataFrame) -> None:
             st.write(a["nature"])
             st.write(a["texte"] or "Pas de texte complémentaire.")
             st.link_button("Ouvrir sur bodacc.fr", a["url"])
+    if c["statut"] in STATUTS_A_ACCOMPAGNER:
+        _fiche_aide(detail)
+
+
+def _fiche_aide(annonces_commerce: pd.DataFrame) -> None:
+    """Qui contacter et quelles dates retenir, pour accompagner un commerce encore sauvable."""
+    fiches = [extraire_fiche(a["texte"] or "", a["date_parution"])
+              for _, a in annonces_commerce.sort_values("date_parution", ascending=False).iterrows()]
+    fiche = next((f for f in fiches if not f.est_vide), None)
+    with st.container(border=True):
+        st.markdown("##### Fiche d'aide · commerce encore sauvable")
+        if fiche:
+            for role, i in (("Mandataire judiciaire", fiche.mandataire), ("Administrateur judiciaire", fiche.administrateur)):
+                if i:
+                    st.markdown(f"- **{role}** : {i.nom}" + (f" — {i.adresse}" if i.adresse else ""))
+            if fiche.date_cessation:
+                st.markdown(f"- **Date de cessation des paiements** : {date_fr(fiche.date_cessation)}")
+            if fiche.delai_creances:
+                st.markdown(f"- **Déclaration des créances** : {fiche.delai_creances}"
+                            + (f" (au plus tard vers le {date_fr(fiche.date_limite_creances)})" if fiche.date_limite_creances else ""))
+        else:
+            st.caption("Le texte publié ne précise pas les intervenants : voir l'annonce sur bodacc.fr.")
+        st.markdown("**Où orienter le commerçant**")
+        for contact in CONTACTS_AIDE:
+            st.markdown(f"- **{contact.nom}** : {contact.role} *{contact.ou_trouver}*")
 
 
 def page() -> None:

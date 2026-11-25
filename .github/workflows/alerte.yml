@@ -1,0 +1,48 @@
+# Alerte hebdomadaire : commerces du centre-ville de Montpellier placés en redressement
+# judiciaire ou en sauvegarde. Un ticket GitHub (label « alerte ») est ouvert s'il y en a.
+name: Alerte commerces en difficulté
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"   # chaque lundi à 6 h UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: alerte-commerces
+  cancel-in-progress: false
+
+jobs:
+  alerte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Chercher les commerces des 7 derniers jours
+        run: python3 alerte.py
+
+      - name: Ouvrir le ticket d'alerte
+        if: hashFiles('alerte.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh label create alerte --color D93F0B \
+            --description "Commerces du centre-ville en redressement ou en sauvegarde" 2>/dev/null || true
+          semaine=$(date -u -d '6 days ago' +%d/%m/%Y)
+          gh issue create \
+            --title "Alerte commerces en redressement ou sauvegarde (semaine du ${semaine})" \
+            --body-file alerte.md \
+            --label alerte

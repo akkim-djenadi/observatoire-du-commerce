@@ -31,6 +31,11 @@ def test_is_commerce(activite, naf, attendu):
     ("Jugement prononçant la résolution du plan de redressement et la liquidation judiciaire",
      "Liquidation judiciaire (conversion)"),
     ("Dépôt de l'état des créances", classify.CREANCES),
+    ("Liste des créances nées après le jugement d'ouverture d'une procédure de redressement judiciaire",
+     classify.CREANCES),
+    ("Jugement d'ouverture d'une procédure de sauvegarde", "Sauvegarde"),
+    ("Jugement modifiant le plan de sauvegarde", "Plan (redressement / cession)"),
+    ("Jugement arrêtant le plan de sauvegarde", "Plan (redressement / cession)"),
     ("Jugement de faillite personnelle", classify.FAILLITE),
     ("Autre jugement et ordonnance", classify.AUTRE),
 ])

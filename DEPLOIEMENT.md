@@ -33,8 +33,43 @@ Vercel reste utile pour donner à l'application une adresse personnalisée (éta
   « Yes, get this app back up » et elle redémarre en une trentaine de secondes.
 - **Première recherche plus lente** : la mémoire des fiches entreprises (`cache/`) est vidée à chaque redémarrage.
   La première recherche sur 6 mois prend alors 1 à 2 minutes, les suivantes sont immédiates.
+- **Pages de vitalité** (Chiffres clés, Vitalité des rues, S'installer) : elles lisent les fichiers de `data/`,
+  mis à jour chaque mois par la collecte automatique. Elles s'affichent donc immédiatement.
 
-## 3. Facultatif : une adresse personnalisée avec Vercel
+## 3. Activer les automatisations (collecte mensuelle, alerte du lundi)
+
+1. Sur GitHub, dans le dépôt : **Settings › Actions › General**. Vérifier que les actions sont autorisées, et dans
+   **Workflow permissions**, choisir **Read and write permissions** (la collecte enregistre ses fichiers dans le
+   dépôt, l'alerte crée des tickets).
+2. Onglet **Actions** › **Collecte mensuelle** › **Run workflow** : lance une première collecte tout de suite
+   (5 à 10 minutes). Ensuite, elle tourne seule le 2 de chaque mois.
+3. Onglet **Actions** › **Alerte commerces en difficulté** › **Run workflow** pour tester l'alerte. Ensuite, elle
+   tourne seule chaque lundi. S'il y a des commerces à signaler, un ticket « alerte » est ouvert.
+4. Pour recevoir les tickets par e-mail : en haut du dépôt, **Watch** › **All Activity** (ou au minimum les
+   *Issues*), et dans vos réglages GitHub › **Notifications**, cocher l'envoi par e-mail.
+
+Les deux automatisations consomment environ 15 minutes par mois, sur les 2 000 minutes gratuites des dépôts privés.
+
+## 4. Relier la feuille des locaux confirmés (page « S'installer »)
+
+1. Créer une feuille Google avec les colonnes `adresse`, `surface_m2`, `loyer_mensuel`, `contact`,
+   `disponible_depuis`, `commentaire` (modèle : `data/modele_locaux.csv`).
+2. **Fichier › Partager › Publier sur le web**, choisir la feuille et le format **CSV**, copier le lien.
+3. Dans Streamlit Cloud, menu de l'application › **Settings › Secrets**, ajouter :
+   ```toml
+   LOCAUX_SHEET_CSV_URL = "le lien copié"
+   ```
+Les locaux confirmés apparaissent en ocre sur la carte, au plus une heure après chaque modification.
+Attention : une feuille publiée sur le web est lisible par toute personne qui a le lien. N'y mettez que ce qui
+peut être public (pas de numéro de téléphone personnel sans accord).
+
+## 5. Après la mise en ligne : l'adresse publique
+
+Le code d'intégration des graphiques (page « Chiffres clés ») utilise l'adresse de l'application, réglée dans
+`config.py` (`APP_URL`, par défaut `https://observatoire-du-commerce.streamlit.app`). Si l'adresse choisie sur
+Streamlit Cloud est différente, modifiez cette ligne puis faites un `git push`.
+
+## 6. Facultatif : une adresse personnalisée avec Vercel
 
 Streamlit Community Cloud ne gère pas les noms de domaine personnalisés. Vercel peut en revanche rediriger votre
 domaine (par exemple `observatoire-commerce.fr`) vers l'application.
@@ -55,7 +90,7 @@ domaine (par exemple `observatoire-commerce.fr`) vers l'application.
 
 Les visiteurs qui tapent votre domaine arrivent ainsi sur l'application.
 
-## 4. Lancer l'application en local
+## 7. Lancer l'application en local
 
 ```bash
 pip3 install -r requirements-dev.txt

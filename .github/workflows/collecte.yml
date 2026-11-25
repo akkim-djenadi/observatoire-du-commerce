@@ -1,0 +1,51 @@
+# Collecte mensuelle de l'Observatoire du Commerce :
+# établissements (Sirene), ventes de locaux (DVF), procédures (BODACC), indice de vitalité, note PDF.
+# Les fichiers de data/ et rapports/ sont commités : l'application se met à jour toute seule.
+name: Collecte mensuelle
+
+on:
+  schedule:
+    - cron: "0 4 2 * *"   # le 2 de chaque mois à 4 h UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collecte
+  cancel-in-progress: false
+
+jobs:
+  collecte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Collecter et calculer l'indice
+        run: python3 collecte.py
+
+      - name: Produire la note de conjoncture (PDF)
+        run: python3 note.py
+        env:
+          CHROME: google-chrome
+
+      - name: Enregistrer les données dans le dépôt
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data rapports
+          if git diff --cached --quiet; then
+            echo "Aucune donnée nouvelle."
+          else
+            git commit -m "chore: collecte mensuelle du $(date +%Y-%m-%d)"
+            git push
+          fi

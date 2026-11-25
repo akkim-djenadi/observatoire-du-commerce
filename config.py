@@ -61,6 +61,31 @@ COMMERCE_ACTIVITE_RE = re.compile(
 COMMERCE_NAF_RE = re.compile(r"^(47|56|55|96\.0[24]|95\.2|93\.13|85\.53|68\.31)")
 ACTIVITE_INCONNUE = {"", "non précisé", "non précisée"}
 
+# --- Vitalité commerciale (collecte mensuelle) ---------------------------------
+CODE_COMMUNE = "34172"            # Montpellier
+CODE_DEPARTEMENT = "34"
+DVF_COMMUNE_URL = "https://files.data.gouv.fr/geo-dvf/latest/csv/{annee}/communes/{dep}/{commune}.csv"
+DVF_DATASET_API = "https://www.data.gouv.fr/api/1/datasets/5cc1b94a634f4165e96436c1/"
+DVF_ANNEES = 5                    # profondeur de l'historique des ventes de locaux
+FERMETURES_MOIS = 36              # on garde les établissements fermés depuis moins de 36 mois
+
+# Codes NAF des commerces de centre-ville (vente à distance et marchés exclus : pas de local)
+NAF_COMMERCE = (
+    "47.11A", "47.11B", "47.11C", "47.11D", "47.11E", "47.11F", "47.19A", "47.19B",
+    "47.21Z", "47.22Z", "47.23Z", "47.24Z", "47.25Z", "47.26Z", "47.29Z", "47.30Z",
+    "47.41Z", "47.42Z", "47.43Z", "47.51Z", "47.52A", "47.52B", "47.53Z", "47.54Z", "47.59A", "47.59B",
+    "47.61Z", "47.62Z", "47.63Z", "47.64Z", "47.65Z",
+    "47.71Z", "47.72A", "47.72B", "47.73Z", "47.74Z", "47.75Z", "47.76Z", "47.77Z", "47.78A", "47.78B",
+    "47.78C", "47.79Z",
+    "56.10A", "56.10B", "56.10C", "56.21Z", "56.30Z", "55.10Z",
+    "96.01B", "96.02A", "96.02B", "96.04Z",
+    "95.21Z", "95.22Z", "95.23Z", "95.24Z", "95.25Z", "95.29Z",
+    "93.13Z", "68.31Z", "79.11Z", "85.53Z",
+)
+INDEPENDANT_MAX_ETABLISSEMENTS = 3   # au-delà, l'entreprise est comptée comme une chaîne
+RUE_MIN_COMMERCES = 8                # en dessous, pas d'indice pour la rue (trop peu fiable)
+APP_URL = "https://observatoire-du-commerce.streamlit.app"  # adresse publique, pour le code d'intégration
+
 DOMICILIATION_RE = re.compile(
     r"bureau 3|alin[ée]a|chez mbe|\bc/o\b|\bc/z\b|6 ?b(is)? boulevard berthelot", re.I
 )

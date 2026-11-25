@@ -1,11 +1,14 @@
-"""Tableau de bord Streamlit de la veille BODACC de l'Observatoire du Commerce (deux pages).
+"""Tableau de bord Streamlit de la veille BODACC de l'Observatoire du Commerce (cinq pages).
 
 Lancement :  python3 -m streamlit run app.py
 """
 import streamlit as st
 
 import vue_centre
+import vue_chiffres
 import vue_comparaison
+import vue_installer
+import vue_vitalite
 from ui_brand import FAVICON_PNG, LOGO_SYMBOLE_PNG
 
 CSS = """
@@ -39,13 +42,20 @@ FOOTER = """
 st.set_page_config(page_title="Veille BODACC · Observatoire du Commerce",
                    page_icon=str(FAVICON_PNG) if FAVICON_PNG.exists() else "🏛️", layout="wide")
 st.markdown(CSS, unsafe_allow_html=True)
-if LOGO_SYMBOLE_PNG.exists():
+# Intégré dans un article (?embed=true&graphique=…) : ni menu ni logo, seulement le graphique demandé.
+# Streamlit garde « embed » pour lui (absent de st.query_params) : on se fie au paramètre « graphique ».
+INTEGRE = "graphique" in st.query_params
+if LOGO_SYMBOLE_PNG.exists() and not INTEGRE:
     st.logo(str(LOGO_SYMBOLE_PNG), size="large")
 
 navigation = st.navigation([
-    st.Page(vue_centre.page, title="Centre-ville de Montpellier", icon=":material/storefront:", default=True),
+    # La page par défaut n'a pas d'adresse propre : les pages à intégrer ou à partager ont chacune la leur.
+    st.Page(vue_centre.page, title="Commerces en difficulté", icon=":material/storefront:", default=True),
+    st.Page(vue_chiffres.page, title="Chiffres clés", icon=":material/insights:", url_path=vue_chiffres.URL_PAGE),
+    st.Page(vue_vitalite.page, title="Vitalité des rues", icon=":material/monitor_heart:", url_path="vitalite"),
+    st.Page(vue_installer.page, title="S'installer", icon=":material/key:", url_path="s-installer"),
     st.Page(vue_comparaison.page, title="Comparer les villes", icon=":material/compare_arrows:",
             url_path="comparer"),
-])
+], position="hidden" if INTEGRE else "sidebar")
 navigation.run()
 st.markdown(FOOTER, unsafe_allow_html=True)

@@ -15,3 +15,9 @@ exports/
 
 # Secrets Streamlit éventuels
 .streamlit/secrets.toml
+
+# Alerte hebdomadaire produite par alerte.py
+alerte.md
+
+# Brouillons HTML de la note (seul le PDF est publié)
+rapports/*.html

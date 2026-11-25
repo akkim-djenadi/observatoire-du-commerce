@@ -3,9 +3,43 @@
 Application de l'**Observatoire du Commerce**. Pour la mettre en ligne : [DEPLOIEMENT.md](DEPLOIEMENT.md). Le logo (« Les Arcades »), ses déclinaisons, le favicon
 et le guide d'usage sont dans [`assets/logo/`](assets/logo/GUIDE.md).
 
-Liste les procédures collectives (redressement, liquidation, sauvegarde, clôture…) publiées au BODACC
-pour les commerces du centre-ville de Montpellier. Deux façons de l'utiliser : un tableau de bord
-dans le navigateur, ou une commande qui produit directement le fichier Excel.
+Mesure la vitalité commerciale du centre-ville de Montpellier, rue par rue, à partir des données publiques :
+procédures collectives (BODACC), ouvertures et fermetures de commerces (Sirene), ventes de locaux (DVF).
+Deux façons de l'utiliser : un tableau de bord dans le navigateur, ou des commandes en ligne.
+
+## Les pages de l'application
+
+| Page | Pour qui | Contenu |
+|---|---|---|
+| Commerces en difficulté | Observatoire | Procédures collectives, carte, fiche de chaque commerce et **fiche d'aide** pour les commerces encore sauvables |
+| Chiffres clés | Public, presse | Les 5 grands chiffres, l'indice mois par mois, le classement des rues, la note PDF, le code pour **intégrer un graphique** dans un article |
+| Vitalité des rues | Observatoire, élus | Indice de vitalité sur 100 par zone et par rue, ses six composantes, l'offre de chaque rue, ouvertures et fermetures |
+| S'installer | Porteurs de projet | Carte des locaux confirmés ou probablement libérés, repères par rue (indice, ce qui manque, prix des locaux) |
+| Comparer les villes | Tous | Défaillances, créations et dynamisme de plusieurs villes, avec une vue « Comprendre les chiffres » |
+
+## Ce qui tourne tout seul (GitHub Actions)
+
+- **Collecte mensuelle** (`.github/workflows/collecte.yml`), le 2 de chaque mois :
+  `collecte.py` récupère les commerces (Sirene), les ventes de locaux (DVF) et les procédures (BODACC),
+  calcule l'indice et l'ajoute à `data/indice_historique.csv`, puis `note.py` produit la note PDF dans
+  `rapports/`. Le tout est commité : l'application en ligne se met à jour toute seule.
+- **Alerte hebdomadaire** (`.github/workflows/alerte.yml`), chaque lundi : `alerte.py` cherche les commerces
+  du centre-ville placés en redressement ou en sauvegarde dans la semaine et ouvre un **ticket GitHub**,
+  que GitHub vous envoie par e-mail.
+
+Les mêmes commandes se lancent à la main :
+
+```bash
+python3 collecte.py
+```
+
+```bash
+python3 note.py
+```
+
+```bash
+python3 alerte.py --depuis 2026-11-01 --sec
+```
 
 ## Tableau de bord (navigateur)
 

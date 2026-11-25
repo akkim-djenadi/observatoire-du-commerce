@@ -68,7 +68,15 @@ def is_commerce(activite: str, naf: str = "") -> bool:
 
 
 def type_procedure(nature: str) -> str:
+    """Type de procédure d'après la nature du jugement publiée au BODACC.
+
+    L'ordre des règles compte : « Liste des créances nées après le jugement d'ouverture d'une procédure de
+    redressement » contient « redressement » et « ouverture » mais n'est pas une ouverture ; « Jugement modifiant
+    le plan de sauvegarde » est un plan, pas une ouverture de sauvegarde.
+    """
     n = nature.lower()
+    if "créances" in n:
+        return CREANCES
     if "clôture" in n:
         return CLOTURE_IA if "insuffisance" in n else "Clôture (extinction du passif)"
     if "conversion en liquidation" in n or "résolution du plan" in n:
@@ -77,12 +85,12 @@ def type_procedure(nature: str) -> str:
         return "Liquidation judiciaire (ouverture)"
     if "redressement" in n and "ouverture" in n:
         return "Redressement judiciaire (ouverture)"
-    if "sauvegarde" in n:
+    if "sauvegarde" in n and "ouverture" in n:
         return "Sauvegarde"
     if "plan" in n:
         return "Plan (redressement / cession)"
-    if "créances" in n:
-        return CREANCES
+    if "sauvegarde" in n:
+        return "Sauvegarde"
     if "faillite" in n:
         return FAILLITE
     return AUTRE
