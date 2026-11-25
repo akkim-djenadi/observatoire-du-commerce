@@ -11,10 +11,13 @@ import pandas as pd
 import streamlit as st
 
 import ui_charts
+import vue_synthese
 from ui_brand import ENTETE
+from vue_vitalite import donnees as donnees_vitalite
 from classify import FILTRES_LIBELLES
 from config import ZONE_ORDER
 from export_excel import write_excel
+from ouverture import avec_dates_ouverture
 from fiche_aide import CONTACTS_AIDE, extraire_fiche
 from vitalite_data import date_fr
 from http_client import SourceIndisponible
@@ -30,7 +33,7 @@ MOIS_NOMS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "
              "septembre", "octobre", "novembre", "décembre"]
 LONGUE_PERIODE_MOIS = 24
 CACHE_TTL_S = 6 * 3600
-VUES = ["Carte", "Tendances", "Commerces", "Annonces"]
+VUES = ["Synthèse", "Carte", "Tendances", "Commerces", "Annonces"]
 COLONNES_ANNONCES = {
     "date_parution": "Parution", "date_jugement": "Jugement", "type": "Type", "nom": "Raison sociale",
     "zone": "Zone", "activite": "Activité", "adresse": "Adresse", "texte": "Texte du jugement", "url": "BODACC",
@@ -141,13 +144,19 @@ def bandeau_indicateurs(rap: Rapport) -> None:
 
 def onglet_commerces(df: pd.DataFrame, annonces: pd.DataFrame) -> None:
     vue = df[list(COLONNES_COMMERCES)].rename(columns=COLONNES_COMMERCES)
-    for col in ("Dernier jugement", "Dernière parution"):
+    for col in ("Ouverture", "Dernier jugement", "Dernière parution"):
         vue[col] = pd.to_datetime(vue[col], errors="coerce")
     event = st.dataframe(
         vue, hide_index=True, width="stretch", height=460, on_select="rerun",
         selection_mode="single-row", key="table_commerces",
         column_config={
             "BODACC": st.column_config.LinkColumn("BODACC", display_text="Voir l'annonce"),
+            "Ouverture": st.column_config.DateColumn(
+                format="DD/MM/YYYY", help="Date d'ouverture de l'établissement (Sirene). À défaut, date de création "
+                "de l'entreprise : voir la colonne « Date de »."),
+            "Date de": st.column_config.TextColumn(
+                width="medium", help="« Établissement » : ouverture de la boutique ; « Entreprise » : création de "
+                "la société, quand l'établissement n'a pas pu être retrouvé."),
             "Dernier jugement": st.column_config.DateColumn(format="DD/MM/YYYY"),
             "Dernière parution": st.column_config.DateColumn(format="DD/MM/YYYY"),
             "Annonces": st.column_config.NumberColumn(width="small"),
@@ -209,7 +218,8 @@ def page() -> None:
     st.caption(f"{rap.ville} · parutions du {rap.debut:%d/%m/%Y} au {rap.fin:%d/%m/%Y} · "
                f"{rap.nb_annonces_ville} annonces de procédures collectives dans la ville, toutes activités")
     f = filtres_affichage(rap, cles)
-    vue = replace(appliquer_filtres(rap, f), filtre=", ".join(cles))
+    vue = avec_dates_ouverture(replace(appliquer_filtres(rap, f), filtre=", ".join(cles)),
+                               donnees_vitalite().etablissements)
     bandeau_indicateurs(vue)
     df, annonces = commerces_df(vue), annonces_df(vue)
     if df.empty:
@@ -217,7 +227,9 @@ def page() -> None:
         return
     # Sélecteur mémorisé : la vue reste la même quand on clique dans un tableau
     choix = st.segmented_control("Vue", VUES, default=VUES[0], key="vue", label_visibility="collapsed") or VUES[0]
-    if choix == "Carte":
+    if choix == "Synthèse":
+        vue_synthese.afficher(vue)
+    elif choix == "Carte":
         st.plotly_chart(ui_charts.carte(df), width="stretch")
         manquants = int(df["latitude"].isna().sum())
         if manquants:

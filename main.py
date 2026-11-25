@@ -17,7 +17,9 @@ from classify import FILTRES_LIBELLES, types_pour_filtres
 from export_excel import write_excel
 from http_client import SourceIndisponible
 from periode import FORMATS_AIDE, lire_date, mois_avant
+from ouverture import avec_dates_ouverture
 from pipeline import run
+from vitalite_data import charger as charger_vitalite
 
 ICI = Path(__file__).resolve().parent
 DOSSIER_SORTIE = ICI / "exports"
@@ -70,7 +72,8 @@ def main(argv: list[str] | None = None) -> int:
              args.filtre or "toutes")
     sortie = args.sortie or DOSSIER_SORTIE / nom_fichier(args.ville, args.debut, args.fin, args.filtre)
     try:
-        rapport = run(args.ville, args.debut, args.fin, CACHE, args.types, args.filtre)
+        rapport = avec_dates_ouverture(run(args.ville, args.debut, args.fin, CACHE, args.types, args.filtre),
+                                       charger_vitalite().etablissements)
     except (SourceIndisponible, ValueError) as exc:
         log.error("Recherche impossible : %s", exc)
         return 1

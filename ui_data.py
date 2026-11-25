@@ -26,6 +26,7 @@ ORDRE_STATUTS = list(COULEURS_STATUT)
 COLONNES_COMMERCES = {
     "zone": "Zone", "nom": "Raison sociale", "enseigne": "Enseigne", "statut": "Statut",
     "secteur": "Secteur", "activite": "Activité", "adresse": "Adresse",
+    "date_ouverture": "Ouverture", "source_ouverture": "Date de",
     "date_jugement": "Dernier jugement", "derniere_parution": "Dernière parution",
     "nb_annonces": "Annonces", "siren": "SIREN", "url": "BODACC",
 }

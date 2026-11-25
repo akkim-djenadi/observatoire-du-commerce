@@ -52,6 +52,8 @@ class Commerce:
     distance_m: int | None
     latitude: float | None = None
     longitude: float | None = None
+    date_ouverture: str = ""        # ouverture de l'établissement (Sirene), sinon création de l'entreprise
+    source_ouverture: str = ""      # « Établissement » ou « Entreprise »
 
 
 @dataclass(frozen=True)

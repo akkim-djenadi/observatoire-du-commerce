@@ -9,6 +9,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 from config import HYPERCENTRE_MAX_M, FAUBOURGS_MAX_M, ZONE_ORDER
+import synthese_commerces
 from pipeline import Rapport
 
 BLEU = "1F3A5F"
@@ -50,27 +51,48 @@ def _synthese(ws: Worksheet, rap: Rapport) -> None:
     ws["A2"].font = Font(italic=True, color="555555")
     ws["A3"] = f"Types d'annonce : {rap.filtre or 'tous'}"
     ws["A3"].font = Font(italic=True, color="555555")
+    n = len(rap.commerces) or 1
+    avec_pct = lambda paires: [(libelle, v, v / n) for libelle, v in paires]  # noqa: E731
+    durees = synthese_commerces.tableau_durees(rap)
+    res = synthese_commerces.resume(durees)
+    tranches = synthese_commerces.repartition(durees["tranche"], synthese_commerces.ordre_tranches())
     blocs = [
         ("Chiffres clés", [
-            (f"Annonces « procédures collectives » à {rap.ville} (toutes activités)", rap.nb_annonces_ville),
-            ("Annonces retenues (commerces du centre-ville)", len(rap.retenus)),
-            ("Commerces distincts concernés", len(rap.commerces)),
+            (f"Annonces « procédures collectives » à {rap.ville} (toutes activités)", rap.nb_annonces_ville, None),
+            ("Annonces retenues (commerces du centre-ville)", len(rap.retenus), None),
+            ("Commerces distincts concernés", len(rap.commerces), None),
         ]),
-        ("Commerces par zone", sorted(Counter(c.zone for c in rap.commerces).items(), key=lambda t: ZONE_ORDER[t[0]])),
-        ("Commerces par statut (dernier jugement publié)", Counter(c.statut for c in rap.commerces).most_common()),
-        ("Commerces par secteur", Counter(c.secteur for c in rap.commerces).most_common()),
+        ("Commerces par zone", avec_pct(sorted(Counter(c.zone for c in rap.commerces).items(),
+                                               key=lambda t: ZONE_ORDER[t[0]]))),
+        ("Commerces par statut (dernier jugement publié)", avec_pct(Counter(c.statut for c in rap.commerces).most_common())),
+        ("Commerces par secteur", avec_pct(Counter(c.secteur for c in rap.commerces).most_common())),
+        ("Ancienneté au moment de la défaillance", [(t, int(nb), pc / 100) for t, nb, pc in tranches.itertuples(index=False)]),
+        ("Durée d'exploitation (de l'ouverture au premier jugement)", [
+            ("Durée moyenne (années)", res.moyenne, None), ("Durée médiane (années)", res.mediane, None),
+            ("Part des commerces de moins de 3 ans", None if res.part_moins_3_ans is None else res.part_moins_3_ans / 100,
+             "pourcentage"),
+            ("Commerces dont la durée est connue", res.nb, None), ("Commerces sans date d'ouverture", res.sans_date, None),
+        ]),
     ]
     row = 5
+    ws.cell(row - 1, 2, "Nombre").font = Font(bold=True, color="555555")
+    ws.cell(row - 1, 3, "Part").font = Font(bold=True, color="555555")
     for titre, lignes in blocs:
         ws.cell(row, 1, titre).font = Font(bold=True, color=BLEU)
         row += 1
-        for libelle, valeur in lignes:
+        for libelle, valeur, part in lignes:
             ws.cell(row, 1, libelle)
-            ws.cell(row, 2, valeur)
+            if part == "pourcentage":               # la valeur elle-même est une part
+                ws.cell(row, 3, valeur).number_format = "0.0 %"
+            else:
+                ws.cell(row, 2, valeur)
+                if part is not None:
+                    ws.cell(row, 3, part).number_format = "0.0 %"
             row += 1
         row += 1
     ws.column_dimensions["A"].width = 78
     ws.column_dimensions["B"].width = 12
+    ws.column_dimensions["C"].width = 10
 
 
 def _methode(ws: Worksheet, rap: Rapport) -> None:
@@ -107,11 +129,12 @@ def write_excel(rap: Rapport, path: Path | BinaryIO) -> Path | BinaryIO:
     _table(wb.create_sheet("Commerces"),
            ["Zone", "Raison sociale / nom", "Enseigne", "SIREN", "Forme", "Secteur", "Activité", "Adresse",
             "Statut (dernier jugement)", "Date dernier jugement", "Dernière parution", "Nb annonces",
-            "Historique des annonces", "État INSEE", "Création", "Lien BODACC", "Distance Comédie (m)"],
+            "Historique des annonces", "État INSEE", "Ouverture", "Date de", "Création de l'entreprise",
+            "Lien BODACC", "Distance Comédie (m)"],
            [[c.zone, c.nom, c.enseigne, c.siren, c.forme, c.secteur, c.activite, c.adresse, c.statut,
              c.date_jugement, c.derniere_parution, c.nb_annonces, c.historique, c.etat_insee,
-             c.date_creation, c.url, c.distance_m] for c in rap.commerces],
-           [22, 28, 16, 13, 22, 22, 30, 38, 30, 13, 13, 8, 60, 10, 11, 30, 10], zone_col=0, link_col=15)
+             c.date_ouverture, c.source_ouverture, c.date_creation, c.url, c.distance_m] for c in rap.commerces],
+           [22, 28, 16, 13, 22, 22, 30, 38, 30, 13, 13, 8, 60, 10, 11, 12, 13, 30, 10], zone_col=0, link_col=17)
     annonces = sorted(rap.retenus, key=lambda r: r.annonce.date_parution, reverse=True)
     _table(wb.create_sheet("Annonces détaillées"),
            ["Date parution", "Date jugement", "Type", "Nature exacte du jugement", "Zone", "Raison sociale / nom",
