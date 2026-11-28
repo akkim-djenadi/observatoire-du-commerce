@@ -161,13 +161,28 @@ def _mois_fr(ts: pd.Timestamp) -> str:
     return f"{MOIS_COURTS[ts.month - 1]} {ts.year}"
 
 
-def chronologie(annonces: pd.DataFrame) -> go.Figure:
-    d = annonces.groupby(["mois", "type"]).size().reset_index(name="n").sort_values("mois")
-    d["mois_fr"] = d["mois"].map(_mois_fr)
-    fig = px.bar(d, x="mois_fr", y="n", color="type", color_discrete_map=COULEURS_TYPE,
-                 category_orders={"type": list(COULEURS_TYPE), "mois_fr": list(dict.fromkeys(d["mois_fr"]))},
-                 labels={"n": "Annonces", "mois_fr": "Mois de parution", "type": "Type"})
+def _barres_par_type(d: pd.DataFrame, axe: str) -> go.Figure:
+    """Barres empilées par type ; `d` a les colonnes periode, type, n (déjà triées)."""
+    fig = px.bar(d, x="periode", y="n", color="type", color_discrete_map=COULEURS_TYPE,
+                 category_orders={"type": list(COULEURS_TYPE), "periode": list(dict.fromkeys(d["periode"]))},
+                 labels={"n": "Annonces", "periode": axe, "type": "Type"})
     fig.update_traces(marker_line_width=0)
     fig = _style(fig, 400)
     fig.update_layout(legend=dict(y=-0.18), margin=dict(b=40))
+    fig.update_xaxes(type="category")  # sinon « 2025 » est lu comme un nombre
     return fig
+
+
+def chronologie(annonces: pd.DataFrame) -> go.Figure:
+    d = annonces.groupby(["mois", "type"]).size().reset_index(name="n").sort_values("mois")
+    d["periode"] = d["mois"].map(_mois_fr)
+    return _barres_par_type(d, "Mois de parution")
+
+
+def chronologie_par_annee(annonces: pd.DataFrame, debut: date, fin: date) -> go.Figure:
+    """Annonces publiées par année et par type. Années incomplètes marquées d'un astérisque."""
+    partielles = annees_incompletes(debut, fin)
+    d = (annonces.assign(annee=annonces["mois"].dt.year).groupby(["annee", "type"]).size()
+         .reset_index(name="n").sort_values("annee"))
+    d["periode"] = d["annee"].map(lambda a: f"{a}" + (" *" if a in partielles else ""))
+    return _barres_par_type(d, "Année de parution")

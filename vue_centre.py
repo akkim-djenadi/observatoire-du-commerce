@@ -220,6 +220,18 @@ def _courbe_evolution(annonces: pd.DataFrame, debut: date, fin: date) -> None:
         st.caption("\\* Mois couvert en partie seulement par la période : sa valeur est forcément plus basse.")
 
 
+def _annonces_par_type(annonces: pd.DataFrame, debut: date, fin: date) -> None:
+    """Par année dès que la période couvre une année entière, sinon par mois (comme la courbe d'évolution)."""
+    if ui_charts.contient_annee_entiere(debut, fin):
+        st.markdown("##### Annonces publiées par année, par type")
+        st.plotly_chart(ui_charts.chronologie_par_annee(annonces, debut, fin), width="stretch")
+        if ui_charts.annees_incompletes(debut, fin):
+            st.caption("\\* Année couverte en partie seulement par la période.")
+        return
+    st.markdown("##### Annonces publiées par mois, par type")
+    st.plotly_chart(ui_charts.chronologie(annonces), width="stretch")
+
+
 def _evolution_annuelle(annonces: pd.DataFrame, debut: date, fin: date) -> None:
     """Taux d'évolution d'une année sur l'autre, à période comparable."""
     st.markdown("##### Évolution d'une année sur l'autre")
@@ -305,8 +317,7 @@ def page() -> None:
         _evolution_annuelle(annonces, rap.debut, rap.fin)
         st.caption("Pour suivre l'évolution sur plusieurs années et la comparer à d'autres villes, "
                    "ouvrez la page « Comparer les villes ».")
-        st.markdown("##### Annonces publiées par mois, par type")
-        st.plotly_chart(ui_charts.chronologie(annonces), width="stretch")
+        _annonces_par_type(annonces, rap.debut, rap.fin)
     elif choix == "Commerces":
         onglet_commerces(df, annonces)
     else:

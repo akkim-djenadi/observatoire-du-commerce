@@ -42,3 +42,18 @@ def test_courbes_mensuelles_inchangees():
     fig = C.evolution(annonces, date(2026, 9, 1), date(2026, 11, 28))
     assert list(fig.data[0].x) == ["sept. 2026", "oct. 2026", "nov. 2026 *"]
     assert list(fig.data[0].y) == [1, 0, 1]
+
+
+def test_annonces_par_type_et_par_annee():
+    annonces = _annonces([("2024-03-05", OUVERTURE)] * 3 + [("2024-09-01", CLOTURE)]
+                         + [("2026-02-10", OUVERTURE)] * 5)
+    fig = C.chronologie_par_annee(annonces, date(2024, 1, 1), date(2026, 11, 28))
+    barres = {t.name: dict(zip(t.x, t.y)) for t in fig.data}
+    assert barres[OUVERTURE] == {"2024": 3, "2026 *": 5}
+    assert barres[CLOTURE] == {"2024": 1}
+
+
+def test_annonces_par_type_et_par_mois_inchangees():
+    annonces = _annonces([("2026-09-05", OUVERTURE), ("2026-11-02", CLOTURE)])
+    fig = C.chronologie(annonces)
+    assert {t.name: list(t.x) for t in fig.data} == {OUVERTURE: ["sept. 2026"], CLOTURE: ["nov. 2026"]}
