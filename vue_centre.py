@@ -204,6 +204,22 @@ def _fiche_aide(annonces_commerce: pd.DataFrame) -> None:
             st.markdown(f"- **{contact.nom}** : {contact.role} *{contact.ou_trouver}*")
 
 
+def _courbe_evolution(annonces: pd.DataFrame, debut: date, fin: date) -> None:
+    """Par année dès que la période couvre une année entière (courbe plus lisible), sinon par mois."""
+    if ui_charts.contient_annee_entiere(debut, fin):
+        st.markdown("##### Évolution année par année")
+        st.plotly_chart(ui_charts.evolution_par_annee(annonces, debut, fin), width="stretch")
+        if ui_charts.annees_incompletes(debut, fin):
+            st.caption(f"\\* Année couverte en partie seulement par la période (du {debut:%d/%m/%Y} au "
+                       f"{fin:%d/%m/%Y}) : sa valeur est forcément plus basse. Pour la comparer à la même "
+                       "période d'une autre année, voir « Évolution d'une année sur l'autre » ci-dessous.")
+        return
+    st.markdown("##### Évolution mois par mois")
+    st.plotly_chart(ui_charts.evolution(annonces, debut, fin), width="stretch")
+    if ui_charts.mois_incomplets(debut, fin):
+        st.caption("\\* Mois couvert en partie seulement par la période : sa valeur est forcément plus basse.")
+
+
 def _evolution_annuelle(annonces: pd.DataFrame, debut: date, fin: date) -> None:
     """Taux d'évolution d'une année sur l'autre, à période comparable."""
     st.markdown("##### Évolution d'une année sur l'autre")
@@ -285,10 +301,7 @@ def page() -> None:
         c1.plotly_chart(ui_charts.par_zone(df), width="stretch")
         c2.markdown("##### Par secteur")
         c2.plotly_chart(ui_charts.par_secteur(df), width="stretch")
-        st.markdown("##### Évolution mois par mois")
-        st.plotly_chart(ui_charts.evolution(annonces, rap.debut, rap.fin), width="stretch")
-        if ui_charts.mois_incomplets(rap.debut, rap.fin):
-            st.caption("\\* Mois couvert en partie seulement par la période : sa valeur est forcément plus basse.")
+        _courbe_evolution(annonces, rap.debut, rap.fin)
         _evolution_annuelle(annonces, rap.debut, rap.fin)
         st.caption("Pour suivre l'évolution sur plusieurs années et la comparer à d'autres villes, "
                    "ouvrez la page « Comparer les villes ».")
