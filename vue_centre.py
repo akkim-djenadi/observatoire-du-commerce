@@ -13,6 +13,7 @@ import streamlit as st
 import ui_charts
 import ui_evolution
 import vue_synthese
+from ui_ville import choisir_ville
 from ui_brand import ENTETE
 from vue_vitalite import donnees as donnees_vitalite
 from classify import FILTRES_LIBELLES
@@ -89,7 +90,7 @@ def choisir_periode() -> tuple[date, date]:
 def barre_laterale() -> tuple[str, date, date, list[str], bool]:
     with st.sidebar:
         st.markdown("### Recherche")
-        ville = st.text_input("Ville", "Montpellier")
+        ville = choisir_ville()
         debut, fin = choisir_periode()
         st.caption(f"Du {debut:%d/%m/%Y} au {fin:%d/%m/%Y}")
         cles = st.multiselect("Types d'annonce", list(FILTRES_LIBELLES), placeholder="Tous les types",

@@ -1,6 +1,7 @@
 """Comparaison entre villes : séries mensuelles BODACC agrégées, ramenées à la population."""
 import logging
 import re
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import date
@@ -49,16 +50,48 @@ class Commune:
     codes_postaux: tuple[str, ...]
 
 
+CHAMPS_COMMUNE = "nom,code,codeDepartement,population,codesPostaux"
+CANDIDATS_SUGGESTION = 30
+
+
+def _commune(r: dict) -> Commune:
+    return Commune(r["nom"], r["code"], r.get("codeDepartement", ""), int(r.get("population") or 0),
+                   tuple(r.get("codesPostaux") or ()))
+
+
 def chercher_commune(nom: str) -> Commune:
     """Commune la plus peuplée portant ce nom (API Découpage administratif)."""
     resultats = get_json(COMMUNES_URL, params={
-        "nom": nom, "fields": "nom,code,codeDepartement,population,codesPostaux", "boost": "population", "limit": "1",
+        "nom": nom, "fields": CHAMPS_COMMUNE, "boost": "population", "limit": "1",
     })
     if not resultats:
         raise ValueError(f"Commune introuvable : {nom}")
-    r = resultats[0]
-    return Commune(r["nom"], r["code"], r.get("codeDepartement", ""), int(r.get("population") or 0),
-                   tuple(r.get("codesPostaux") or ()))
+    return _commune(resultats[0])
+
+
+def normaliser_nom(texte: str) -> str:
+    """Sans accents, en minuscules, tirets et apostrophes remplacés par des espaces : « Saint-Étienne » → « saint etienne »."""
+    espaces = re.sub(r"[-'’]", " ", texte)
+    sans_accents = unicodedata.normalize("NFKD", espaces).encode("ascii", "ignore").decode()
+    return " ".join(sans_accents.lower().split())
+
+
+def suggerer_communes(debut_nom: str, limite: int = 8) -> list[Commune]:
+    """Communes dont le nom commence par ces lettres, les plus peuplées d'abord (API Découpage administratif)."""
+    debut = normaliser_nom(debut_nom)
+    if not debut:
+        return []
+    resultats = get_json(COMMUNES_URL, params={
+        "nom": debut_nom.strip(), "fields": CHAMPS_COMMUNE, "boost": "population", "limit": str(CANDIDATS_SUGGESTION),
+    })
+    communes = [_commune(r) for r in resultats or [] if normaliser_nom(r.get("nom", "")).startswith(debut)]
+    return sorted(communes, key=lambda c: -c.population)[:limite]
+
+
+def libelle_commune(c: Commune) -> str:
+    """« Montpellier (34) · 310 240 hab. » : distingue les homonymes (Saint-Denis 93 / 974)."""
+    habitants = f" · {c.population:,} hab.".replace(",", "\u202f") if c.population else ""
+    return f"{c.nom} ({c.departement}){habitants}"
 
 
 def _texte_odsql(valeur: str) -> str:
