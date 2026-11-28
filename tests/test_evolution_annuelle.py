@@ -4,7 +4,8 @@ import pandas as pd
 import pytest
 
 from evolution_annuelle import (
-    LigneAnnee, compteur_dates, compteur_mensuel, compteur_ratio, evolution_annuelle, taux_evolution, un_an_avant,
+    LigneAnnee, comparer_annees, compteur_dates, compteur_mensuel, compteur_ratio, evolution_annuelle, taux_evolution,
+    un_an_avant,
 )
 
 
@@ -72,3 +73,37 @@ def test_compteur_ratio():
     defaillances = compteur_dates([date(2025, 1, 1)] * 4)
     assert compteur_ratio(creations, defaillances)(date(2025, 1, 1), date(2025, 12, 31)) == 1.5
     assert compteur_ratio(creations, compteur_dates([]))(date(2025, 1, 1), date(2025, 12, 31)) is None
+
+
+def test_comparer_deux_annees_non_consecutives():
+    dates = [date(2022, 3, 1)] * 8 + [date(2024, 3, 1)] * 10 + [date(2026, 2, 1)] * 12
+    c = comparer_annees(compteur_dates(dates), date(2022, 1, 1), date(2026, 12, 31), 2022, 2026)
+    assert (c.valeur_depart, c.valeur_arrivee, c.evolution_pct) == (8, 12, 50.0)
+    assert c.annee_entiere and c.fenetre == "année entière"
+
+
+def test_comparer_annee_en_cours_sur_les_memes_jours_dans_les_deux_sens():
+    # 2024 : 4 annonces avant le 28/11, 6 après ; 2026 (en cours) : 5 annonces
+    dates = [date(2024, 5, 1)] * 4 + [date(2024, 12, 15)] * 6 + [date(2026, 4, 1)] * 5
+    compter = compteur_dates(dates)
+    c = comparer_annees(compter, date(2024, 1, 1), date(2026, 11, 28), 2024, 2026)
+    assert (c.debut, c.fin) == (date(2026, 1, 1), date(2026, 11, 28))
+    assert (c.valeur_depart, c.valeur_arrivee, c.evolution_pct) == (4, 5, 25.0)
+    assert c.fenetre == "du 01/01 au 28/11"
+    inverse = comparer_annees(compter, date(2024, 1, 1), date(2026, 11, 28), 2026, 2024)
+    assert (inverse.valeur_depart, inverse.valeur_arrivee, inverse.evolution_pct) == (5, 4, -20.0)
+    assert (inverse.debut, inverse.fin) == (date(2024, 1, 1), date(2024, 11, 28))
+
+
+def test_comparer_debut_en_cours_d_annee():
+    dates = [date(2025, 2, 1)] * 3 + [date(2025, 6, 1)] * 4 + [date(2026, 6, 1)] * 2
+    c = comparer_annees(compteur_dates(dates), date(2025, 3, 15), date(2026, 11, 28), 2025, 2026)
+    assert c.fenetre == "du 15/03 au 28/11"
+    assert (c.valeur_depart, c.valeur_arrivee) == (4, 2)   # février 2025 hors des données
+
+
+def test_comparer_sans_jours_communs_ou_hors_periode():
+    compter = compteur_dates([])
+    assert comparer_annees(compter, date(2025, 11, 1), date(2026, 2, 28), 2025, 2026) is None
+    with pytest.raises(ValueError):
+        comparer_annees(compter, date(2025, 1, 1), date(2026, 2, 28), 2023, 2026)

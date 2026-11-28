@@ -132,10 +132,12 @@ def _evolution_annuelle(large: pd.DataFrame, cle: str, mesure: str, debut: date,
                         couleurs: dict[str, str]) -> None:
     """Taux d'évolution d'une année sur l'autre de l'indicateur choisi, ville par ville."""
     st.markdown(f"##### Évolution d'une année sur l'autre · {mesure}")
-    par_ville = U.lignes_villes(large, cle, debut, fin)
     if debut.year == fin.year:
         st.info("Choisissez au moins deux années pour comparer les années entre elles.")
         return
+    _comparer_deux_annees(large, cle, debut, fin, couleurs)
+    st.markdown("###### Année par année")
+    par_ville = U.lignes_villes(large, cle, debut, fin)
     st.plotly_chart(U.barres_villes(par_ville, couleurs), width="stretch")
     tableau = U.formater_pourcentages(U.tableau_villes(par_ville))
     pct = st.column_config.TextColumn(help="Comparé à la même période de l'année précédente")
@@ -147,6 +149,26 @@ def _evolution_annuelle(large: pd.DataFrame, cle: str, mesure: str, debut: date,
                "population étant fixe). ")
     st.caption(valeurs + "L'année en cours est comparée aux mêmes mois de l'année précédente ; "
                "la première année de la période n'a pas de point de comparaison.")
+
+
+def _comparer_deux_annees(large: pd.DataFrame, cle: str, debut: date, fin: date,
+                          couleurs: dict[str, str]) -> None:
+    """Année X contre année Y, choisies par l'utilisateur, ville par ville."""
+    choix = U.choisir_annees(debut, fin, "villes_evolution")
+    if choix is None:
+        return
+    par_ville = U.comparer_villes(large, cle, debut, fin, *choix)
+    if not par_ville:
+        st.info("Pas de données pour comparer ces deux années.")
+        return
+    st.plotly_chart(U.barres_comparaison(par_ville, couleurs), width="stretch")
+    tableau = U.formater_pourcentages(U.tableau_comparaison(par_ville))
+    valeur = st.column_config.NumberColumn(format="%.2f" if cle == "ratio" else "localized")
+    st.dataframe(tableau, hide_index=True, width="stretch", column_config={
+        c: (st.column_config.TextColumn() if c == U.COL_EVOLUTION else valeur)
+        for c in tableau.columns if c != "Ville"})
+    fenetre = next(iter(par_ville.values())).fenetre
+    st.caption(f"De {choix[0]} à {choix[1]}, sur les mêmes jours de chaque année ({fenetre}).")
 
 
 def _comprendre(synth: pd.DataFrame, reference: str, perimetre: str) -> None:
