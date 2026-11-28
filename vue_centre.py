@@ -12,6 +12,7 @@ import streamlit as st
 
 import ui_charts
 import ui_evolution
+import ui_evolution_types
 import vue_synthese
 from ui_ville import choisir_ville
 from ui_brand import ENTETE
@@ -274,6 +275,26 @@ def _comparer_deux_annees(annonces: pd.DataFrame, debut: date, fin: date) -> Non
     st.caption(f"{defaillances.depart} : {defaillances.valeur_depart:.0f} défaillances et "
                f"{toutes.valeur_depart:.0f} annonces. Les deux années sont comparées sur les mêmes jours "
                f"({defaillances.fenetre}).")
+    _par_procedure(annonces, debut, fin, *choix)
+
+
+def _par_procedure(annonces: pd.DataFrame, debut: date, fin: date, depart: int, arrivee: int) -> None:
+    """Liquidations, redressements, sauvegardes : taux d'évolution de X à Y, puis la courbe année par année."""
+    courbe = ui_evolution_types.courbe_categories(annonces, debut, fin, depart, arrivee)
+    if courbe is None:
+        return
+    st.markdown(f"###### Taux d'évolution de {depart} à {arrivee}, par procédure")
+    st.plotly_chart(ui_evolution_types.graphique_taux(courbe, depart, arrivee), width="stretch")
+    premiere, derniere = courbe.annees[0], courbe.annees[-1]
+    st.markdown(f"###### Courbe de {premiere} à {derniere}, par procédure")
+    st.plotly_chart(ui_evolution_types.graphique_courbe(courbe), width="stretch")
+    tableau = ui_evolution.formater_pourcentages(ui_evolution_types.tableau(courbe, depart, arrivee))
+    st.dataframe(tableau, hide_index=True, width="stretch", column_config={
+        ui_evolution_types.COL_EVOLUTION: st.column_config.TextColumn(f"De {depart} à {arrivee} (%)")})
+    st.caption(f"Chaque année est comptée sur les mêmes jours ({courbe.fenetre.libelle}), pour que l'année en "
+               "cours reste comparable. Liquidations, redressements et sauvegardes sont des jugements "
+               "d'ouverture : leur somme donne « Toutes les défaillances ». Une conversion en liquidation est un "
+               "redressement qui échoue. « — » : aucune procédure l'année de départ, pas de pourcentage possible.")
 
 
 def page() -> None:
