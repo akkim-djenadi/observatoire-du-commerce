@@ -11,6 +11,7 @@ import pandas as pd
 import streamlit as st
 
 import ui_charts
+import ui_evolution
 import vue_synthese
 from ui_brand import ENTETE
 from vue_vitalite import donnees as donnees_vitalite
@@ -203,6 +204,24 @@ def _fiche_aide(annonces_commerce: pd.DataFrame) -> None:
             st.markdown(f"- **{contact.nom}** : {contact.role} *{contact.ou_trouver}*")
 
 
+def _evolution_annuelle(annonces: pd.DataFrame, debut: date, fin: date) -> None:
+    """Taux d'évolution d'une année sur l'autre, à période comparable."""
+    st.markdown("##### Évolution d'une année sur l'autre")
+    defaillances, toutes = ui_evolution.lignes_centre(annonces, debut, fin)
+    if not any(l.precedent is not None for l in defaillances):
+        st.info("Pour comparer les années entre elles, choisissez dans le panneau de gauche « De tel mois à tel "
+                "mois » avec au moins deux années, par exemple de janvier 2024 à aujourd'hui.")
+        return
+    st.plotly_chart(ui_evolution.barres_centre(defaillances), width="stretch")
+    pct = st.column_config.TextColumn(help="Comparé à la même période de l'année précédente")
+    tableau = ui_evolution.formater_pourcentages(ui_evolution.tableau_centre(defaillances, toutes))
+    st.dataframe(tableau, hide_index=True, width="stretch",
+                 column_config={ui_evolution.COL_EVOL_DEFAILLANCES: pct, ui_evolution.COL_EVOL_ANNONCES: pct})
+    st.caption("Défaillances : jugements d'ouverture de redressement, de sauvegarde ou de liquidation. Chaque année "
+               "est comparée à la même période de l'année précédente (une année en cours à la même date de "
+               "l'an passé). La première année de la période n'a pas de point de comparaison.")
+
+
 def page() -> None:
     ville, debut, fin, cles, lancer = barre_laterale()
     st.markdown(ENTETE, unsafe_allow_html=True)
@@ -245,6 +264,7 @@ def page() -> None:
         st.plotly_chart(ui_charts.evolution(annonces, rap.debut, rap.fin), width="stretch")
         if ui_charts.mois_incomplets(rap.debut, rap.fin):
             st.caption("\\* Mois couvert en partie seulement par la période : sa valeur est forcément plus basse.")
+        _evolution_annuelle(annonces, rap.debut, rap.fin)
         st.caption("Pour suivre l'évolution sur plusieurs années et la comparer à d'autres villes, "
                    "ouvrez la page « Comparer les villes ».")
         st.markdown("##### Annonces publiées par mois, par type")

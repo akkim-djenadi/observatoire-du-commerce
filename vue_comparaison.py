@@ -6,6 +6,7 @@ import streamlit as st
 
 import comparaison as C
 import explications as E
+import ui_evolution as U
 from ui_brand import ENTETE
 from ui_charts_comparaison import (COULEUR_MONTPELLIER, MAX_VILLES, PALETTE_VILLES, VILLE_REFERENCE, classement,
                                     courbes)
@@ -100,6 +101,7 @@ def page() -> None:
                                label_visibility="collapsed") or VUES[0]
     if vue == VUES[0]:
         _graphiques(serie, synth, couleurs, mesure, unite_affichee, ratio, par_hab)
+        _evolution_annuelle(large, cle, mesure, debut, fin, couleurs)
         st.download_button("Télécharger les séries mensuelles (CSV)",
                            large.to_csv(index=False, sep=";").encode("utf-8-sig"),
                            file_name=f"comparaison_villes_{debut:%Y-%m}_{fin:%Y-%m}.csv")
@@ -124,6 +126,27 @@ def _graphiques(serie: pd.DataFrame, synth: pd.DataFrame, couleurs: dict[str, st
         C.COL_EVOLUTION: st.column_config.NumberColumn(
             format="%+.1f", help="12 derniers mois de la période comparés aux 12 mois précédents"),
     })
+
+
+def _evolution_annuelle(large: pd.DataFrame, cle: str, mesure: str, debut: date, fin: date,
+                        couleurs: dict[str, str]) -> None:
+    """Taux d'évolution d'une année sur l'autre de l'indicateur choisi, ville par ville."""
+    st.markdown(f"##### Évolution d'une année sur l'autre · {mesure}")
+    par_ville = U.lignes_villes(large, cle, debut, fin)
+    if debut.year == fin.year:
+        st.info("Choisissez au moins deux années pour comparer les années entre elles.")
+        return
+    st.plotly_chart(U.barres_villes(par_ville, couleurs), width="stretch")
+    tableau = U.formater_pourcentages(U.tableau_villes(par_ville))
+    pct = st.column_config.TextColumn(help="Comparé à la même période de l'année précédente")
+    valeur = st.column_config.NumberColumn(format="%.2f" if cle == "ratio" else "localized")
+    st.dataframe(tableau, hide_index=True, width="stretch", column_config={
+        c: (pct if c.endswith("(%)") else valeur) for c in tableau.columns if c != "Ville"})
+    valeurs = ("Créations pour 1 défaillance, calculées sur chaque période. " if cle == "ratio" else
+               "Nombres bruts publiés au BODACC (le taux d'évolution est le même pour 10 000 habitants, la "
+               "population étant fixe). ")
+    st.caption(valeurs + "L'année en cours est comparée aux mêmes mois de l'année précédente ; "
+               "la première année de la période n'a pas de point de comparaison.")
 
 
 def _comprendre(synth: pd.DataFrame, reference: str, perimetre: str) -> None:
