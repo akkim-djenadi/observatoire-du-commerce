@@ -111,10 +111,41 @@ class ComparaisonAnnees:
         return "année entière" if self.annee_entiere else f"du {self.debut:%d/%m} au {self.fin:%d/%m}"
 
 
+@dataclass(frozen=True)
+class Fenetre:
+    """Mêmes jours de chaque année, en (mois, jour) : du 01/01 au 28/11 par exemple."""
+    premier: tuple[int, int]
+    dernier: tuple[int, int]
+
+    def bornes(self, annee: int) -> tuple[date, date]:
+        return en_annee(date(2000, *self.premier), annee), en_annee(date(2000, *self.dernier), annee)
+
+    @property
+    def annee_entiere(self) -> bool:
+        return (self.premier, self.dernier) == ((1, 1), (12, 31))
+
+    @property
+    def libelle(self) -> str:
+        if self.annee_entiere:
+            return "année entière"
+        d, f = self.bornes(2000)
+        return f"du {d:%d/%m} au {f:%d/%m}"
+
+
 def _fenetre_annee(debut: date, fin: date, annee: int) -> tuple[date, date]:
     if not debut.year <= annee <= fin.year:
         raise ValueError(f"L'année {annee} est hors de la période.")
     return max(debut, date(annee, 1, 1)), min(fin, date(annee, 12, 31))
+
+
+def fenetre_commune(debut: date, fin: date, annees: Iterable[int]) -> Fenetre | None:
+    """Jours de l'année couverts par la période pour chacune de ces années (None s'il n'y en a aucun)."""
+    fenetres = [_fenetre_annee(debut, fin, a) for a in annees]
+    if not fenetres:
+        return None
+    premier = max((d.month, d.day) for d, _ in fenetres)
+    dernier = min((f.month, f.day) for _, f in fenetres)
+    return Fenetre(premier, dernier) if premier <= dernier else None
 
 
 def comparer_annees(compter: Compteur, debut: date, fin: date, depart: int,
@@ -124,15 +155,9 @@ def comparer_annees(compter: Compteur, debut: date, fin: date, depart: int,
     Une année en cours (janvier → 28 novembre) est comparée à janvier → 28 novembre de l'autre année,
     jamais à une année entière, que l'autre année soit avant ou après.
     """
-    fenetres = [_fenetre_annee(debut, fin, a) for a in (depart, arrivee)]
-    premier = max((d.month, d.day) for d, _ in fenetres)
-    dernier = min((f.month, f.day) for _, f in fenetres)
-    if premier > dernier:
+    fenetre = fenetre_commune(debut, fin, (depart, arrivee))
+    if fenetre is None:
         return None
-
-    def bornes(annee: int) -> tuple[date, date]:
-        return en_annee(date(2000, *premier), annee), en_annee(date(2000, *dernier), annee)
-
-    valeur_depart, valeur_arrivee = compter(*bornes(depart)), compter(*bornes(arrivee))
-    return ComparaisonAnnees(depart, arrivee, *bornes(arrivee), valeur_depart, valeur_arrivee,
+    valeur_depart, valeur_arrivee = compter(*fenetre.bornes(depart)), compter(*fenetre.bornes(arrivee))
+    return ComparaisonAnnees(depart, arrivee, *fenetre.bornes(arrivee), valeur_depart, valeur_arrivee,
                              taux_evolution(valeur_arrivee, valeur_depart))
