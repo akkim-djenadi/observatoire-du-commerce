@@ -79,3 +79,25 @@ def test_graphiques_ignorent_les_annees_sans_comparaison():
 def test_pourcentages_a_la_francaise():
     t = pd.DataFrame({"Année": ["2024", "2025"], "Évolution (%)": [None, -22.2]})
     assert list(U.formater_pourcentages(t)["Évolution (%)"]) == ["—", "-22,2 %"]
+
+
+def test_comparer_centre_deux_annees():
+    annonces = _annonces(
+        [("2023-03-01", OUVERTURE)] * 2 + [("2024-03-01", OUVERTURE)] * 7
+        + [("2026-02-01", OUVERTURE)] * 3 + [("2026-02-01", LISTE)] * 3
+    )
+    defaillances, toutes = U.comparer_centre(annonces, date(2023, 1, 1), date(2026, 11, 28), 2023, 2026)
+    assert (defaillances.valeur_depart, defaillances.valeur_arrivee, defaillances.evolution_pct) == (2, 3, 50.0)
+    assert (toutes.valeur_depart, toutes.valeur_arrivee) == (2, 6)
+    assert U.texte_delta(defaillances) == "+50,0 % par rapport à 2023"
+    assert U.texte_delta(None) is None
+
+
+def test_comparer_villes_tableau_et_graphique():
+    par_ville = U.comparer_villes(_large(), "ouverture", date(2024, 1, 1), date(2025, 10, 31), 2024, 2025)
+    t = U.tableau_comparaison(par_ville)
+    assert list(t.columns) == ["Ville", "2024 (du 01/01 au 31/10)", "2025 (du 01/01 au 31/10)", U.COL_EVOLUTION]
+    assert list(t.iloc[0]) == ["Montpellier", 20, 40, 100.0]
+    fig = U.barres_comparaison(par_ville, {"Montpellier": "#BB502E"})
+    assert list(fig.data[0].x) == ["Montpellier", "Nîmes"]
+    assert list(fig.data[0].text) == ["+100,0 %", "+100,0 %"]

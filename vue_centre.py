@@ -207,11 +207,15 @@ def _fiche_aide(annonces_commerce: pd.DataFrame) -> None:
 def _evolution_annuelle(annonces: pd.DataFrame, debut: date, fin: date) -> None:
     """Taux d'évolution d'une année sur l'autre, à période comparable."""
     st.markdown("##### Évolution d'une année sur l'autre")
-    defaillances, toutes = ui_evolution.lignes_centre(annonces, debut, fin)
-    if not any(l.precedent is not None for l in defaillances):
+    if debut.year == fin.year:
         st.info("Pour comparer les années entre elles, choisissez dans le panneau de gauche « De tel mois à tel "
                 "mois » avec au moins deux années, par exemple de janvier 2024 à aujourd'hui.")
         return
+    _comparer_deux_annees(annonces, debut, fin)
+    defaillances, toutes = ui_evolution.lignes_centre(annonces, debut, fin)
+    if not any(l.precedent is not None for l in defaillances):
+        return
+    st.markdown("###### Année par année")
     st.plotly_chart(ui_evolution.barres_centre(defaillances), width="stretch")
     pct = st.column_config.TextColumn(help="Comparé à la même période de l'année précédente")
     tableau = ui_evolution.formater_pourcentages(ui_evolution.tableau_centre(defaillances, toutes))
@@ -220,6 +224,27 @@ def _evolution_annuelle(annonces: pd.DataFrame, debut: date, fin: date) -> None:
     st.caption("Défaillances : jugements d'ouverture de redressement, de sauvegarde ou de liquidation. Chaque année "
                "est comparée à la même période de l'année précédente (une année en cours à la même date de "
                "l'an passé). La première année de la période n'a pas de point de comparaison.")
+
+
+def _comparer_deux_annees(annonces: pd.DataFrame, debut: date, fin: date) -> None:
+    """Année X contre année Y, choisies par l'utilisateur, sur les mêmes jours de l'année."""
+    choix = ui_evolution.choisir_annees(debut, fin, "centre_evolution")
+    if choix is None:
+        return
+    defaillances, toutes = ui_evolution.comparer_centre(annonces, debut, fin, *choix)
+    if defaillances is None:
+        st.info("Ces deux années n'ont aucun jour en commun dans la période choisie.")
+        return
+    c1, c2 = st.columns(2)
+    c1.metric(f"Défaillances en {defaillances.arrivee}", f"{defaillances.valeur_arrivee:.0f}",
+              ui_evolution.texte_delta(defaillances), delta_color="inverse",
+              help=f"{defaillances.valeur_depart:.0f} en {defaillances.depart}")
+    c2.metric(f"Toutes les annonces en {toutes.arrivee}", f"{toutes.valeur_arrivee:.0f}",
+              ui_evolution.texte_delta(toutes), delta_color="off",
+              help=f"{toutes.valeur_depart:.0f} en {toutes.depart}")
+    st.caption(f"{defaillances.depart} : {defaillances.valeur_depart:.0f} défaillances et "
+               f"{toutes.valeur_depart:.0f} annonces. Les deux années sont comparées sur les mêmes jours "
+               f"({defaillances.fenetre}).")
 
 
 def page() -> None:
